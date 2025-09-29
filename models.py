@@ -29,8 +29,8 @@ class Model1(nn.Module):
         super(Model1, self).__init__()
 
         # CONVOLUTION BLOCK 1
-        self.c1_1 = conv_bn_act(3, 16, kernel=3, stride=1, padding=1, dilation=1)
-        self.c1_2 = conv_bn_act(16, 32, kernel=3, stride=2, padding=1, dilation=1)
+        self.c1_1 = conv_bn_act(3, 32, kernel=3, stride=1, padding=1, dilation=1)
+        self.c1_2 = conv_bn_act(32, 32, kernel=3, stride=2, padding=1, dilation=1)
 
         # CONVOLUTION BLOCK 2
         self.c2 = dws_bn_act(32, 64, kernel_size=3, stride=2, padding=1, dilation=1)
@@ -72,4 +72,5 @@ class Model1(nn.Module):
         x = self.gap(x)
         x = torch.flatten(x, 1)
         x = self.fc(x)
-        return x
+        x = x.view(-1, 10)
+        return F.log_softmax(x, dim=-1)
