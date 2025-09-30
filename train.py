@@ -1,17 +1,19 @@
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
+import torch.nn as nn
 from torchvision import datasets, transforms
 from tqdm import tqdm
 from torchsummary import summary
 from torch.optim.lr_scheduler import StepLR
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
+from torch.optim.lr_scheduler import OneCycleLR
 from models import Model1
 from utils import plot_metrics
 
 
-def train(model, device, train_loader, optimizer, epoch, train_losses, train_acc):
+def train(model, device, train_loader, optimizer, scheduler, criterion, epoch, train_losses, train_acc):
     model.train()
     pbar = tqdm(train_loader)
     correct = 0
@@ -21,10 +23,11 @@ def train(model, device, train_loader, optimizer, epoch, train_losses, train_acc
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         y_pred = model(data)
-        loss = F.nll_loss(y_pred, target)   # expects log_softmax in model forward
+        loss = criterion(y_pred, target)   # expects log_softmax in model forward
         train_loss += loss.item()
         loss.backward()
         optimizer.step()
+        scheduler.step()
         # if batch_idx > 5:
         #     break
         pred = y_pred.argmax(dim=1, keepdim=True)
@@ -38,7 +41,7 @@ def train(model, device, train_loader, optimizer, epoch, train_losses, train_acc
     train_acc.append(acc)
 
 
-def test(model, device, test_loader, test_losses, test_acc):
+def test(model, device, test_loader, criterion, test_losses, test_acc):
     model.eval()
     test_loss = 0
     correct = 0
@@ -46,7 +49,7 @@ def test(model, device, test_loader, test_losses, test_acc):
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
             output = model(data)
-            test_loss += F.nll_loss(output, target, reduction='sum').item()
+            test_loss += criterion(output, target).item()
             pred = output.argmax(dim=1, keepdim=True)
             correct += pred.eq(target.view_as(pred)).sum().item()
     test_loss /= len(test_loader.dataset)
@@ -149,11 +152,24 @@ def perform_training():
 
     # return
     #optimizer = optim.SGD(model.parameters(), lr=0.02, momentum=0.9)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-4)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-4)
 
-    scheduler = StepLR(optimizer, step_size=20, gamma=0.1)
+    # scheduler = StepLR(optimizer, step_size=20, gamma=0.1)
 
-    EPOCHS = 50
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
+    EPOCHS = 80
+    scheduler = OneCycleLR(
+        optimizer,
+        max_lr=1e-3,
+        steps_per_epoch=len(train_loader),
+
+        epochs=EPOCHS,
+        pct_start=0.2,
+        anneal_strategy="cos",
+    )
+
+    EPOCHS = 100
     SAVE_PATH = "best_model.pth"
 
     train_losses, test_losses, train_acc, test_acc = [], [], [], []
@@ -161,9 +177,8 @@ def perform_training():
 
     for epoch in range(1, EPOCHS + 1):
         print(f"\nEPOCH: {epoch}")
-        train(model, device, train_loader, optimizer, epoch, train_losses, train_acc)
-        current_test_acc = test(model, device, test_loader, test_losses, test_acc)
-        scheduler.step()
+        train(model, device, train_loader, optimizer, scheduler, criterion, epoch, train_losses, train_acc)
+        current_test_acc = test(model, device, test_loader, criterion, test_losses, test_acc)
         if current_test_acc >= best_val_acc:
             print("found perfect model!!")
             best_val_acc = current_test_acc
@@ -174,7 +189,8 @@ def perform_training():
                 "val_acc": current_test_acc,
             }, SAVE_PATH)
             print(f"Saved best model (acc={best_val_acc:.2f}%) to {SAVE_PATH}")
-
+            if best_val_acc >= 85.0:
+                break
 
     print("-----------------------------------------")
     print("train accuracies", len(train_acc), train_acc)
