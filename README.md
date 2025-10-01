@@ -19,7 +19,57 @@ The CIFAR-10 dataset contains 60,000 32×32 colored images across 10 classes (6,
 - Training set: 50,000 images
 - Test set: 10,000 images
 
+```
+----------------------------------------
+Total images in training dataset: 50000
+CIFAR-10 Class Distribution:
+----------------------------------------
+Class 0 (airplane   ): 5000 images
+Class 1 (automobile ): 5000 images
+Class 2 (bird       ): 5000 images
+Class 3 (cat        ): 5000 images
+Class 4 (deer       ): 5000 images
+Class 5 (dog        ): 5000 images
+Class 6 (frog       ): 5000 images
+Class 7 (horse      ): 5000 images
+Class 8 (ship       ): 5000 images
+Class 9 (truck      ): 5000 images
+----------------------------------------
+```
+
 ## **Data Exploration**
+### &emsp; Sample CIFAR10 Image
+
+A typical CIFAR-10 image is a low-resolution, 32×32 pixel color photograph (using 3 RGB channels).
+
+<img src="images/cifar10_sample.png" alt="Graph 1 Title" style="width: 100%; max-width: 800px;"/>
+
+
+### &emsp; Normalization
+Since the images are in color and their pixel brightness values range from 0 (black) to 255 (white) across the Red, Green, and Blue channels, we need to normalize them.
+
+Normalization is essential because it scales these values into a smaller, consistent range, which makes it much easier for the neural network to learn effectively and efficiently during training. To do this correctly for color images, we treat each color channel (Red, Green, Blue) separately. We calculate the average brightness (mean) and spread of brightness (standard deviation) for every single pixel across all 50,000 training images for each channel. These resulting mean and standard deviation values are then used to normalize the entire dataset.
+
+
+```
+============================================================
+Calculating Channel Mean and Standard Deviation across all images
+============================================================
+mean tensor([0.4914, 0.4822, 0.4465])
+std tensor([0.2470, 0.2435, 0.2616])
+============================================================
+```
+
+## **Data Augmentation**
+Using albumentation library, three data augmentation techniques were applied randomly on all the training images in order to avoid overfitting and improve testing accuracy.
+- horizontal flip
+- shiftScaleRotate
+- coarseDropout  
+
+<img src="images/data_augmentation_cifar10_sample.png" alt="Graph 1 Title" style="width: 100%; max-width: 800px;"/>
+
+This image has the original image along with the augmented ones.
+
 
 ## **Experiments**
 
@@ -34,8 +84,11 @@ Multiple models were tried with different set of parameters.
 |5|**[Final Notebook File](FifthSuccessful.ipynb)**|92,394|69|
 
 ### &emsp; Analysis
- - abc
- - def
+ - **Parameter Reduction Strategy**: Initially, models (Experiments 1-4) were designed with a higher parameter count (up to 183,882). The goal was to ensure the architecture had enough capacity to reach the 85% accuracy target quickly.
+
+ - **Optimization and Trimming**: Once the accuracy target was consistently met, the focus shifted to reducing the total parameters and optimizing the Receptive Field (RF), leading to the Final Architecture (Experiment 5).
+
+ - **Final Efficiency**: The final model achieves the required 85% accuracy with only 92,394 parameters—a reduction of nearly 50% from the first successful attempt. This highlights the effectiveness of using techniques like Depthwise Separable Convolutions to maintain performance while significantly improving model efficiency.
 
 ## **Final Architecture**
 
@@ -105,7 +158,7 @@ Estimated Total Size (MB): 2.73
 ```
 
 ### &emsp; **Network Main Features**
-
+- The network has four convolution blocks and a output block.
 - In Block 2, a **Depthwise Separable Convolution** is used. This technique has significantly reduced the total number of parameters.
 - The feature map size is halved twice using convolutions with a **stride of 2** (c1_2 and c2_2), reducing the spatial size from 32×32 to 8×8
 - The final convolutional layer (c5) uses a **Dilated Convolution** with a dilation rate of 2. This allows the last layer to see a much larger context of the image without further downsampling, ensuring the feature maps are based on information from the entire 32×32 input image (Receptive Field of 61).
@@ -203,3 +256,12 @@ For complete logs please check [Final Notebook File](FifthSuccessful.ipynb)
     </td>
   </tr>
 </table>
+
+## Conclusion
+
+- **Constraint Satisfaction**: The final model meets all assignment requirements:
+  - **Accuracy**: Achieved 85.13% test accuracy in 69 epochs.
+  - **Parameters**: The model is highly efficient, using only **92,394** parameters, well under the 200k limit.
+  - **RF**: The Receptive Field is **61**, satisfying the >44 requirement.
+  - **Architecture**: It correctly uses Depthwise Separable and Dilated Convolutions for efficient feature extraction.
+- Use of **Albumentation** for data augmentation and **dropout** of 0.1 helped the model learn better and avoid overfitting. 
